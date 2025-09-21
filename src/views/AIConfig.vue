@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-base-100">
     <!-- 顶部导航栏 -->
-    <div class="navbar bg-base-200 shadow-sm border-b border-base-300">
+    <div class="navbar bg-base-200 shadow-sm border-b border-base-300 fixed top-0 left-0 right-0 z-40">
       <!-- 左侧返回按钮 -->
       <div class="navbar-start">
         <button @click="goBack" class="btn btn-ghost btn-circle" aria-label="Back">
@@ -16,16 +16,31 @@
         <h1 class="text-xl font-bold">AI模型配置</h1>
       </div>
       
-      <!-- 右侧保存按钮 -->
+      <!-- 右侧按钮组 -->
       <div class="navbar-end">
-        <button @click="saveConfig" class="btn btn-primary btn-sm">
-          保存
-        </button>
+        <div class="flex gap-2">
+          <!-- 清除所有模型按钮 -->
+          <button @click="clearAllModels" class="btn btn-error btn-sm">
+            清除所有
+          </button>
+          <!-- 导入按钮 -->
+          <button @click="importConfig" class="btn btn-outline btn-sm">
+            导入
+          </button>
+          <!-- 导出按钮 -->
+          <button @click="exportConfig" class="btn btn-outline btn-sm">
+            导出
+          </button>
+          <!-- 保存按钮 -->
+          <button @click="saveConfig" class="btn btn-primary btn-sm">
+            保存
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- 配置内容 -->
-    <div class="container mx-auto p-6 max-w-4xl">
+    <div class="container mx-auto p-6 max-w-4xl pt-20">
       <!-- SDK分组 -->
       <div class="space-y-6">
         <div v-for="sdk in sdkGroups" :key="sdk.id" class="card bg-base-200 shadow-sm">
@@ -160,7 +175,7 @@
                             <input 
                               v-model="model.name"
                               type="text" 
-                              placeholder="模型名称 (如: gpt-3.5-turbo)"
+                              placeholder="模型名称"
                               class="input input-xs input-bordered flex-1"
                             />
                             <input 
@@ -200,6 +215,60 @@
         </div>
       </div>
     </div>
+
+    <!-- 隐藏的文件输入 -->
+    <input 
+      ref="fileInput" 
+      type="file" 
+      accept=".json" 
+      @change="handleFileSelect" 
+      style="display: none"
+    />
+
+    <!-- 导入确认对话框 -->
+    <div v-if="showImportDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-base-100 rounded-lg p-6 max-w-md w-full mx-4">
+        <h3 class="text-lg font-bold mb-4">确认导入配置</h3>
+        <p class="text-base-content/70 mb-6">
+          导入将覆盖当前所有配置（不包含API Key），此操作不可撤销。确定要继续吗？
+        </p>
+        <div class="flex gap-3 justify-end">
+          <button @click="cancelImport" class="btn btn-ghost">
+            取消
+          </button>
+          <button @click="confirmImport" class="btn btn-primary">
+            确认导入
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 清除所有模型确认对话框 -->
+    <div v-if="showClearDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-base-100 rounded-lg p-6 max-w-md w-full mx-4">
+        <h3 class="text-lg font-bold mb-4 text-error">⚠️ 危险操作</h3>
+        <p class="text-base-content/70 mb-4">
+          您即将清除所有AI模型配置，包括：
+        </p>
+        <ul class="list-disc list-inside text-base-content/70 mb-6 space-y-1">
+          <li>所有SDK分组中的模型</li>
+          <li>所有API Key</li>
+          <li>所有Base URL配置</li>
+          <li>当前选中的模型</li>
+        </ul>
+        <p class="text-error font-medium mb-6">
+          此操作不可撤销！请确认您真的要执行此操作。
+        </p>
+        <div class="flex gap-3 justify-end">
+          <button @click="cancelClear" class="btn btn-ghost">
+            取消
+          </button>
+          <button @click="confirmClear" class="btn btn-error">
+            确认清除
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -212,6 +281,14 @@ export default {
   setup() {
     const router = useRouter()
     const selectedModelId = ref('')
+    
+    // 导入导出相关
+    const showImportDialog = ref(false)
+    const fileInput = ref(null)
+    let pendingImportData = null
+    
+    // 清除所有模型相关
+    const showClearDialog = ref(false)
     
     // SDK分组数据
     const sdkGroups = ref([
@@ -268,7 +345,7 @@ export default {
       if (sdk) {
         const newGroup = {
           id: generateId(),
-          name: '新配置组',
+          name: '',
           apiKey: '',
           expanded: true,
           models: []
@@ -276,13 +353,7 @@ export default {
         
         // 根据SDK类型设置默认基础URL（Google AI SDK和Anthropic SDK不支持自定义baseURL）
         if (sdkId !== 'google' && sdkId !== 'anthropic') {
-          let defaultBaseUrl = ''
-          switch (sdkId) {
-            case 'openai':
-              defaultBaseUrl = 'https://api.openai.com/v1'
-              break
-          }
-          newGroup.baseUrl = defaultBaseUrl
+          newGroup.baseUrl = ''
         }
         sdk.groups.push(newGroup)
       }
@@ -368,8 +439,243 @@ export default {
       document.body.appendChild(toast)
       
       setTimeout(() => {
-        document.body.removeChild(toast)
+        if (toast && toast.parentNode) {
+          document.body.removeChild(toast)
+        }
       }, 2000)
+    }
+
+    // 导出配置
+    const exportConfig = () => {
+      try {
+        // 创建导出数据，排除API Key
+        const exportData = {
+          version: '1.0',
+          timestamp: new Date().toISOString(),
+          config: sdkGroups.value.map(sdk => ({
+            ...sdk,
+            groups: sdk.groups.map(group => {
+              const { apiKey, ...groupWithoutKey } = group
+              return groupWithoutKey
+            })
+          }))
+        }
+
+        // 创建下载链接
+        const dataStr = JSON.stringify(exportData, null, 2)
+        const dataBlob = new Blob([dataStr], { type: 'application/json' })
+        const url = URL.createObjectURL(dataBlob)
+        
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `gsrobot-config-${new Date().toISOString().split('T')[0]}.json`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+
+        // 显示导出成功提示
+        const toast = document.createElement('div')
+        toast.className = 'toast toast-top toast-center'
+        toast.innerHTML = `
+          <div class="alert alert-success">
+            <span>配置已导出</span>
+          </div>
+        `
+        document.body.appendChild(toast)
+        setTimeout(() => {
+          document.body.removeChild(toast)
+        }, 2000)
+      } catch (error) {
+        console.error('导出配置失败:', error)
+        // 显示错误提示
+        const toast = document.createElement('div')
+        toast.className = 'toast toast-top toast-center'
+        toast.innerHTML = `
+          <div class="alert alert-error">
+            <span>导出失败</span>
+          </div>
+        `
+        document.body.appendChild(toast)
+        setTimeout(() => {
+          document.body.removeChild(toast)
+        }, 2000)
+      }
+    }
+
+    // 导入配置
+    const importConfig = () => {
+      fileInput.value?.click()
+    }
+
+    // 处理文件选择
+    const handleFileSelect = (event) => {
+      const file = event.target.files[0]
+      if (!file) return
+
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        try {
+          const importData = JSON.parse(e.target.result)
+          
+          // 验证导入数据格式
+          if (!importData.config || !Array.isArray(importData.config)) {
+            throw new Error('无效的配置文件格式')
+          }
+
+          pendingImportData = importData.config
+          showImportDialog.value = true
+        } catch (error) {
+          console.error('读取配置文件失败:', error)
+          // 显示错误提示
+          const toast = document.createElement('div')
+          toast.className = 'toast toast-top toast-center'
+          toast.innerHTML = `
+            <div class="alert alert-error">
+              <span>配置文件格式错误</span>
+            </div>
+          `
+          document.body.appendChild(toast)
+          setTimeout(() => {
+            document.body.removeChild(toast)
+          }, 2000)
+        }
+      }
+      reader.readAsText(file)
+      
+      // 清空文件输入
+      event.target.value = ''
+    }
+
+    // 确认导入
+    const confirmImport = () => {
+      if (pendingImportData) {
+        try {
+          // 合并导入的配置，保留现有的API Key
+          pendingImportData.forEach(importedSdk => {
+            const existingSdk = sdkGroups.value.find(s => s.id === importedSdk.id)
+            if (existingSdk) {
+              // 保存现有的API Key
+              const existingApiKeys = new Map()
+              existingSdk.groups?.forEach(group => {
+                if (group.apiKey) {
+                  existingApiKeys.set(group.id, group.apiKey)
+                }
+              })
+
+              // 更新配置
+              existingSdk.groups = importedSdk.groups || []
+              existingSdk.expanded = importedSdk.expanded !== undefined ? importedSdk.expanded : existingSdk.expanded
+
+              // 恢复API Key
+              existingSdk.groups.forEach(group => {
+                const savedKey = existingApiKeys.get(group.id)
+                if (savedKey) {
+                  group.apiKey = savedKey
+                }
+              })
+            }
+          })
+
+          showImportDialog.value = false
+          pendingImportData = null
+
+          // 显示导入成功提示
+          const toast = document.createElement('div')
+          toast.className = 'toast toast-top toast-center'
+          toast.innerHTML = `
+            <div class="alert alert-success">
+              <span>配置已导入</span>
+            </div>
+          `
+          document.body.appendChild(toast)
+          setTimeout(() => {
+            document.body.removeChild(toast)
+          }, 2000)
+        } catch (error) {
+          console.error('导入配置失败:', error)
+          // 显示错误提示
+          const toast = document.createElement('div')
+          toast.className = 'toast toast-top toast-center'
+          toast.innerHTML = `
+            <div class="alert alert-error">
+              <span>导入失败</span>
+            </div>
+          `
+          document.body.appendChild(toast)
+          setTimeout(() => {
+            document.body.removeChild(toast)
+          }, 2000)
+        }
+      }
+    }
+
+    // 取消导入
+    const cancelImport = () => {
+      showImportDialog.value = false
+      pendingImportData = null
+    }
+
+    // 清除所有模型
+    const clearAllModels = () => {
+      showClearDialog.value = true
+    }
+
+    // 确认清除
+    const confirmClear = () => {
+      try {
+        // 重置所有SDK分组为初始状态
+        sdkGroups.value.forEach(sdk => {
+          sdk.groups = []
+          sdk.expanded = false
+        })
+
+        // 清除选中的模型
+        selectedModelId.value = ''
+        localStorage.removeItem('gsrobot-selected-model')
+        localStorage.removeItem('gsrobot-current-model')
+
+        // 保存清空的配置
+        localStorage.setItem('gsrobot-ai-config', JSON.stringify(sdkGroups.value))
+
+        showClearDialog.value = false
+
+        // 显示清除成功提示
+        const toast = document.createElement('div')
+        toast.className = 'toast toast-top toast-center'
+        toast.innerHTML = `
+          <div class="alert alert-success">
+            <span>所有模型配置已清除</span>
+          </div>
+        `
+        document.body.appendChild(toast)
+        setTimeout(() => {
+          if (toast && toast.parentNode) {
+            document.body.removeChild(toast)
+          }
+        }, 2000)
+      } catch (error) {
+        console.error('清除配置失败:', error)
+        // 显示错误提示
+        const toast = document.createElement('div')
+        toast.className = 'toast toast-top toast-center'
+        toast.innerHTML = `
+          <div class="alert alert-error">
+            <span>清除失败</span>
+          </div>
+        `
+        document.body.appendChild(toast)
+        setTimeout(() => {
+          if (toast && toast.parentNode) {
+            document.body.removeChild(toast)
+          }
+        }, 2000)
+      }
+    }
+
+    // 取消清除
+    const cancelClear = () => {
+      showClearDialog.value = false
     }
 
     // 加载配置
@@ -405,6 +711,9 @@ export default {
     return {
       sdkGroups,
       selectedModelId,
+      showImportDialog,
+      showClearDialog,
+      fileInput,
       toggleSDK,
       toggleGroup,
       addGroup,
@@ -412,7 +721,15 @@ export default {
       addModel,
       deleteModel,
       goBack,
-      saveConfig
+      saveConfig,
+      exportConfig,
+      importConfig,
+      handleFileSelect,
+      confirmImport,
+      cancelImport,
+      clearAllModels,
+      confirmClear,
+      cancelClear
     }
   }
 }
