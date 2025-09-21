@@ -88,6 +88,7 @@ import { ref, computed, provide, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Sidebar from '../components/Sidebar.vue'
 import ChatArea from '../components/ChatArea.vue'
+import openaiService from '../services/openaiService.js'
 
 export default {
   name: 'Home',
@@ -209,16 +210,24 @@ export default {
     }
 
     // 发送消息
-    const handleSendMessage = async (content) => {
+    const handleSendMessage = async (content, files = []) => {
       if (!currentChatId.value) {
         handleNewChat()
       }
 
+      // 构建用户消息内容
+      let messageContent = content
+      if (files.length > 0) {
+        const fileNames = files.map(f => f.name).join(', ')
+        messageContent = content ? `${content}\n\n📎 附件: ${fileNames}` : `📎 附件: ${fileNames}`
+      }
+
       const userMessage = {
         id: Date.now().toString(),
-        content,
+        content: messageContent,
         role: 'user',
-        timestamp: new Date()
+        timestamp: new Date(),
+        files: files // 保存文件信息
       }
 
       if (!messages.value[currentChatId.value]) {
@@ -230,10 +239,11 @@ export default {
       // 更新聊天标题（如果是第一条消息）
       const chat = chats.value.find(c => c.id === currentChatId.value)
       if (chat && messages.value[currentChatId.value].length === 1) {
-        chat.title = content.slice(0, 30) + (content.length > 30 ? '...' : '')
+        const titleContent = content || `文件: ${files[0]?.name || '附件'}`
+        chat.title = titleContent.slice(0, 30) + (titleContent.length > 30 ? '...' : '')
       }
       if (chat) {
-        chat.lastMessage = content
+        chat.lastMessage = messageContent
       }
 
       // 保存用户消息
@@ -241,21 +251,193 @@ export default {
 
       // 获取当前模型信息
       const currentModel = getCurrentModel()
-      const modelName = currentModel ? currentModel.name : 'GSRobot'
-      const modelProvider = currentModel ? currentModel.provider : '默认模型'
+      
+      try {
+        // 检查是否有配置的模型
+        if (!currentModel) {
+          addAIMessage('错误：未选择AI模型，请在设置中选择一个模型。')
+          return
+        }
 
-      // 模拟AI回复
-      setTimeout(() => {
-        const aiMessage = {
+        // 根据模型SDK类型选择对应的API通道
+        if (currentModel.sdkId === 'openai') {
+          // 使用OpenAI API
+          await handleOpenAIResponse(content, files, currentModel)
+        } else if (currentModel.sdkId === 'azure') {
+          // Azure OpenAI 使用相同的API格式
+          await handleOpenAIResponse(content, files, currentModel)
+        } else {
+          // 其他SDK类型暂不支持，显示错误信息
+          const supportedSDKs = {
+            'google': 'Google AI (Gemini)',
+            'anthropic': 'Anthropic (Claude)',
+            'azure': 'Azure OpenAI'
+          }
+          const sdkName = supportedSDKs[currentModel.sdkId] || currentModel.sdkId
+          addAIMessage(`错误：${sdkName} SDK暂未实现，目前仅支持 OpenAI 和 Azure OpenAI。请选择 OpenAI 或 Azure OpenAI 模型，或等待后续版本支持。`)
+        }
+      } catch (error) {
+        console.error('发送消息失败:', error)
+        // 添加错误消息
+        const errorMessage = {
           id: (Date.now() + 1).toString(),
-          content: `我是${modelName}（${modelProvider}），这是对"${content}"的回复。作为AI助手，我很高兴为您提供帮助。`,
+          content: `抱歉，发送消息时出现错误：${error.message}`,
           role: 'assistant',
           timestamp: new Date()
         }
-        messages.value[currentChatId.value].push(aiMessage)
-        // 保存AI回复
+        messages.value[currentChatId.value].push(errorMessage)
         saveChatsToStorage()
-      }, 1000)
+      }
+    }
+
+    // 处理OpenAI API响应
+    const handleOpenAIResponse = async (content, files, currentModel) => {
+      let aiMessage = null
+      
+      try {
+        // 验证模型配置
+        if (!currentModel.apiKey) {
+          addAIMessage('错误：未配置OpenAI API密钥，请在设置中配置。')
+          return
+        }
+
+        // 配置OpenAI服务
+        console.log('配置OpenAI服务:', {
+          hasApiKey: !!currentModel.apiKey,
+          baseURL: currentModel.baseUrl || 'https://api.openai.com/v1',
+          modelName: currentModel.modelName
+        });
+        
+        openaiService.configure({
+          apiKey: currentModel.apiKey,
+          baseURL: currentModel.baseUrl || 'https://api.openai.com/v1'
+        })
+
+        // 构建消息历史
+        const chatHistory = messages.value[currentChatId.value] || []
+        const apiMessages = chatHistory
+          .slice(0, -1) // 排除刚添加的用户消息
+          .filter(msg => msg.role === 'user' || msg.role === 'assistant')
+          .map(msg => ({
+            role: msg.role,
+            content: msg.content
+          }))
+
+        // 添加当前用户消息
+        if (files && files.length > 0) {
+          const imageFiles = files.filter(file => file.type.startsWith('image/'))
+          if (imageFiles.length > 0) {
+            // 处理图片消息
+            const messageContent = [{ type: 'text', text: content || '请分析这些图片' }]
+            for (const file of imageFiles) {
+              const base64 = await convertFileToBase64(file)
+              messageContent.push({
+                type: 'image_url',
+                image_url: { url: base64 }
+              })
+            }
+            apiMessages.push({ role: 'user', content: messageContent })
+          } else {
+            apiMessages.push({ role: 'user', content: content || '请分析这些文件' })
+          }
+        } else {
+          apiMessages.push({ role: 'user', content: content })
+        }
+
+        // 添加AI消息占位符
+        aiMessage = addAIMessage('正在思考...')
+
+        // 发送请求到OpenAI
+        console.log('发送消息到OpenAI:', {
+          messagesCount: apiMessages.length,
+          model: currentModel.modelName,
+          lastMessage: apiMessages[apiMessages.length - 1]
+        });
+        
+        await openaiService.sendMessage(apiMessages, {
+          model: currentModel.modelName,
+          stream: true,
+          onChunk: (chunk) => {
+            console.log('收到chunk回调:', chunk?.length || 0, '字符');
+            // 更新AI消息内容
+            if (aiMessage) {
+              // 找到消息在数组中的索引并更新
+              const messageList = messages.value[currentChatId.value]
+              const messageIndex = messageList.findIndex(msg => msg.id === aiMessage.id)
+              if (messageIndex !== -1) {
+                messageList[messageIndex].content = chunk
+                saveChatsToStorage()
+              }
+            }
+          },
+          onComplete: (finalContent) => {
+            console.log('收到完成回调:', finalContent?.length || 0, '字符');
+            if (aiMessage) {
+              // 找到消息在数组中的索引并更新
+              const messageList = messages.value[currentChatId.value]
+              const messageIndex = messageList.findIndex(msg => msg.id === aiMessage.id)
+              if (messageIndex !== -1) {
+                messageList[messageIndex].content = finalContent
+                saveChatsToStorage()
+                
+                // 更新聊天的最后消息
+                const chat = chats.value.find(c => c.id === currentChatId.value)
+                if (chat) {
+                  chat.lastMessage = finalContent
+                }
+              }
+            }
+          },
+          onError: (error) => {
+            console.log('收到错误回调:', error);
+            if (aiMessage) {
+              aiMessage.content = `抱歉，发生错误: ${error.message}`
+              saveChatsToStorage()
+            }
+          }
+        })
+
+      } catch (error) {
+        console.error('OpenAI API调用失败:', error)
+        if (aiMessage) {
+          aiMessage.content = `抱歉，OpenAI API调用失败: ${error.message}`
+        } else {
+          addAIMessage(`抱歉，OpenAI API调用失败: ${error.message}`)
+        }
+        saveChatsToStorage()
+      }
+    }
+
+
+
+    // 添加AI消息
+    const addAIMessage = (content) => {
+      const aiMessage = {
+        id: (Date.now() + 1).toString(),
+        content,
+        role: 'assistant',
+        timestamp: new Date()
+      }
+      messages.value[currentChatId.value].push(aiMessage)
+      
+      // 更新聊天的最后消息
+      const chat = chats.value.find(c => c.id === currentChatId.value)
+      if (chat) {
+        chat.lastMessage = content
+      }
+      
+      saveChatsToStorage()
+      return aiMessage
+    }
+
+    // 将文件转换为Base64格式
+    const convertFileToBase64 = (file) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
     }
 
     // 当前聊天
@@ -307,7 +489,8 @@ export default {
       closeSidebar,
       handleNewChat,
       handleSelectChat,
-      handleSendMessage
+      handleSendMessage,
+      saveChatsToStorage
     }
   }
 }

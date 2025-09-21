@@ -145,35 +145,40 @@
                       <div 
                         v-for="model in group.models" 
                         :key="model.id"
-                        class="flex items-center space-x-2 p-2 border border-base-300 rounded bg-base-50"
+                        class="border border-base-300 rounded p-3 bg-base-50"
                       >
-                        <input 
-                          type="radio" 
-                          :name="`selected-model`"
-                          :value="model.id"
-                          v-model="selectedModelId"
-                          class="radio radio-primary radio-sm"
-                        />
-                        <input 
-                          v-model="model.name"
-                          type="text" 
-                          placeholder="模型名称"
-                          class="input input-xs input-bordered flex-1"
-                        />
-                        <input 
-                          v-model="model.displayName"
-                          type="text" 
-                          placeholder="显示名称"
-                          class="input input-xs input-bordered flex-1"
-                        />
-                        <button 
-                          @click="deleteModel(sdk.id, group.id, model.id)"
-                          class="btn btn-ghost btn-xs text-error"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
+                        <div class="space-y-2">
+                          <!-- 模型配置行：选择、模型名称、显示名称、删除 -->
+                          <div class="flex items-center space-x-2">
+                            <input 
+                              type="radio" 
+                              :name="`selected-model`"
+                              :value="model.id"
+                              v-model="selectedModelId"
+                              class="radio radio-primary radio-sm"
+                            />
+                            <input 
+                              v-model="model.name"
+                              type="text" 
+                              placeholder="模型名称 (如: gpt-3.5-turbo)"
+                              class="input input-xs input-bordered flex-1"
+                            />
+                            <input 
+                              v-model="model.displayName"
+                              type="text" 
+                              placeholder="显示名称"
+                              class="input input-xs input-bordered flex-1"
+                            />
+                            <button 
+                              @click="deleteModel(sdk.id, group.id, model.id)"
+                              class="btn btn-ghost btn-xs text-error"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -268,11 +273,28 @@ export default {
     const addGroup = (sdkId) => {
       const sdk = sdkGroups.value.find(s => s.id === sdkId)
       if (sdk) {
+        // 根据SDK类型设置默认基础URL
+        let defaultBaseUrl = ''
+        switch (sdkId) {
+          case 'openai':
+            defaultBaseUrl = 'https://api.openai.com/v1'
+            break
+          case 'azure':
+            defaultBaseUrl = 'https://your-resource.openai.azure.com'
+            break
+          case 'google':
+            defaultBaseUrl = 'https://generativelanguage.googleapis.com'
+            break
+          case 'anthropic':
+            defaultBaseUrl = 'https://api.anthropic.com'
+            break
+        }
+        
         const newGroup = {
           id: generateId(),
           name: '新配置组',
           apiKey: '',
-          baseUrl: '',
+          baseUrl: defaultBaseUrl,
           expanded: true,
           models: []
         }
@@ -299,6 +321,7 @@ export default {
             name: '',
             displayName: ''
           }
+          
           group.models.push(newModel)
         }
       }

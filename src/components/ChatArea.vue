@@ -54,7 +54,18 @@
             
             <!-- 消息内容 -->
             <div class="prose prose-sm max-w-none">
-              <p class="whitespace-pre-wrap break-words mb-0">{{ message.content }}</p>
+              <!-- AI消息使用Markdown渲染 -->
+              <MarkdownRenderer 
+                v-if="message.role === 'assistant'" 
+                :content="message.content" 
+              />
+              <!-- 用户消息保持原样 -->
+              <p 
+                v-else 
+                class="whitespace-pre-wrap break-words mb-0"
+              >
+                {{ message.content }}
+              </p>
             </div>
           </div>
         </div>
@@ -82,6 +93,31 @@
     <!-- 输入区域 -->
     <div class="border-t border-base-300 p-4">
       <div class="max-w-4xl mx-auto">
+        <!-- 文件预览区域 -->
+        <div v-if="selectedFiles.length > 0" class="mb-3">
+          <div class="flex flex-wrap gap-2">
+            <div 
+              v-for="(file, index) in selectedFiles" 
+              :key="index"
+              class="flex items-center bg-base-200 rounded-lg p-2 text-sm"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+              </svg>
+              <span class="truncate max-w-32">{{ file.name }}</span>
+              <button 
+                @click="removeFile(index)"
+                class="ml-2 text-error hover:text-error-focus"
+                type="button"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
         <form @submit.prevent="sendMessage" class="flex items-end space-x-2">
           <div class="flex-1">
             <textarea
@@ -95,11 +131,36 @@
               ref="messageInput"
             ></textarea>
           </div>
+          
+          <!-- 文件上传按钮 -->
+          <div class="relative">
+            <input
+              type="file"
+              ref="fileInput"
+              @change="handleFileSelect"
+              multiple
+              accept="image/*,.pdf,.txt,.doc,.docx"
+              class="hidden"
+            />
+            <button 
+              type="button"
+              @click="triggerFileSelect"
+              class="btn btn-outline btn-square"
+              style="height: 40px; min-height: 40px; width: 40px;"
+              :disabled="isLoading"
+              title="上传文件"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+              </svg>
+            </button>
+          </div>
+
           <button 
             type="submit"
             class="btn btn-primary self-end"
             style="height: 40px; min-height: 40px;"
-            :disabled="!inputMessage.trim() || isLoading"
+            :disabled="(!inputMessage.trim() && selectedFiles.length === 0) || isLoading"
           >
             <svg v-if="!isLoading" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -119,9 +180,13 @@
 
 <script>
 import { ref, nextTick, watch, onMounted } from 'vue'
+import MarkdownRenderer from './MarkdownRenderer.vue'
 
 export default {
   name: 'ChatArea',
+  components: {
+    MarkdownRenderer
+  },
   props: {
     currentChat: {
       type: Object,
@@ -138,17 +203,22 @@ export default {
     const isLoading = ref(false)
     const messagesContainer = ref(null)
     const messageInput = ref(null)
+    const fileInput = ref(null)
+    const selectedFiles = ref([])
 
     // 发送消息
     const sendMessage = async () => {
-      if (!inputMessage.value.trim() || isLoading.value) return
+      if ((!inputMessage.value.trim() && selectedFiles.value.length === 0) || isLoading.value) return
 
       const message = inputMessage.value.trim()
+      const files = [...selectedFiles.value]
+      
       inputMessage.value = ''
+      selectedFiles.value = []
       isLoading.value = true
 
       try {
-        await emit('sendMessage', message)
+        await emit('sendMessage', message, files)
       } finally {
         isLoading.value = false
         // 聚焦输入框
@@ -156,6 +226,36 @@ export default {
           messageInput.value?.focus()
         })
       }
+    }
+
+    // 触发文件选择
+    const triggerFileSelect = () => {
+      fileInput.value?.click()
+    }
+
+    // 处理文件选择
+    const handleFileSelect = (event) => {
+      const files = Array.from(event.target.files)
+      if (files.length > 0) {
+        // 限制文件大小（10MB）
+        const maxSize = 10 * 1024 * 1024
+        const validFiles = files.filter(file => {
+          if (file.size > maxSize) {
+            alert(`文件 ${file.name} 超过10MB限制`)
+            return false
+          }
+          return true
+        })
+        
+        selectedFiles.value.push(...validFiles)
+      }
+      // 清空input值，允许重复选择同一文件
+      event.target.value = ''
+    }
+
+    // 移除文件
+    const removeFile = (index) => {
+      selectedFiles.value.splice(index, 1)
     }
 
     // 添加换行
@@ -247,9 +347,14 @@ export default {
       isLoading,
       messagesContainer,
       messageInput,
+      fileInput,
+      selectedFiles,
       sendMessage,
       addNewLine,
-      formatTime
+      formatTime,
+      triggerFileSelect,
+      handleFileSelect,
+      removeFile
     }
   }
 }

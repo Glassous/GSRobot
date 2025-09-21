@@ -232,9 +232,30 @@ export default {
       // 更新当前模型信息用于其他组件
       const selectedModel = availableModels.value.find(m => m.id === selectedModelId.value)
       if (selectedModel) {
+        // 获取组级别的配置信息
+        const savedConfig = localStorage.getItem('gsrobot-ai-config')
+        let groupConfig = null
+        
+        if (savedConfig) {
+          try {
+            const config = JSON.parse(savedConfig)
+            const sdk = config.find(s => s.id === selectedModel.sdkId)
+            if (sdk) {
+              groupConfig = sdk.groups?.find(g => g.id === selectedModel.groupId)
+            }
+          } catch (e) {
+            console.error('获取组配置失败:', e)
+          }
+        }
+        
         const currentModelInfo = {
           name: selectedModel.displayName,
-          provider: selectedModel.provider
+          provider: selectedModel.provider,
+          modelName: selectedModel.name,
+          sdkId: selectedModel.sdkId,
+          groupId: selectedModel.groupId,
+          apiKey: groupConfig?.apiKey || '',
+          baseUrl: groupConfig?.baseUrl || ''
         }
         localStorage.setItem('gsrobot-current-model', JSON.stringify(currentModelInfo))
       } else {
