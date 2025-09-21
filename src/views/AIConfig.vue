@@ -117,8 +117,8 @@
                     />
                   </div>
 
-                  <!-- Base URL -->
-                  <div class="form-control">
+                  <!-- Base URL (Google AI SDK不支持自定义baseURL，因此隐藏此字段) -->
+                  <div v-if="sdk.id !== 'google'" class="form-control">
                     <label class="label">
                       <span class="label-text text-sm">Base URL</span>
                     </label>
@@ -224,8 +224,8 @@ export default {
       },
       {
         id: 'google',
-        name: 'Google',
-        description: '基于Google AI SDK的模型配置',
+        name: 'Google AI',
+        description: '基于Google AI SDK的模型配置，支持Gemini系列模型',
         expanded: false,
         groups: []
       },
@@ -273,30 +273,29 @@ export default {
     const addGroup = (sdkId) => {
       const sdk = sdkGroups.value.find(s => s.id === sdkId)
       if (sdk) {
-        // 根据SDK类型设置默认基础URL
-        let defaultBaseUrl = ''
-        switch (sdkId) {
-          case 'openai':
-            defaultBaseUrl = 'https://api.openai.com/v1'
-            break
-          case 'azure':
-            defaultBaseUrl = 'https://your-resource.openai.azure.com'
-            break
-          case 'google':
-            defaultBaseUrl = 'https://generativelanguage.googleapis.com'
-            break
-          case 'anthropic':
-            defaultBaseUrl = 'https://api.anthropic.com'
-            break
-        }
-        
         const newGroup = {
           id: generateId(),
           name: '新配置组',
           apiKey: '',
-          baseUrl: defaultBaseUrl,
           expanded: true,
           models: []
+        }
+        
+        // 根据SDK类型设置默认基础URL（Google AI SDK不支持自定义baseURL）
+        if (sdkId !== 'google') {
+          let defaultBaseUrl = ''
+          switch (sdkId) {
+            case 'openai':
+              defaultBaseUrl = 'https://api.openai.com/v1'
+              break
+            case 'azure':
+              defaultBaseUrl = 'https://your-resource.openai.azure.com'
+              break
+            case 'anthropic':
+              defaultBaseUrl = 'https://api.anthropic.com'
+              break
+          }
+          newGroup.baseUrl = defaultBaseUrl
         }
         sdk.groups.push(newGroup)
       }

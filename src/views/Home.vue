@@ -89,6 +89,7 @@ import { useRouter, useRoute } from 'vue-router'
 import Sidebar from '../components/Sidebar.vue'
 import ChatArea from '../components/ChatArea.vue'
 import openaiService from '../services/openaiService.js'
+import googleaiService from '../services/googleaiService.js'
 
 export default {
   name: 'Home',
@@ -266,15 +267,17 @@ export default {
         } else if (currentModel.sdkId === 'azure') {
           // Azure OpenAI 使用相同的API格式
           await handleOpenAIResponse(content, files, currentModel)
+        } else if (currentModel.sdkId === 'google') {
+          // 使用Google AI API
+          await handleGoogleAIResponse(content, files, currentModel)
         } else {
           // 其他SDK类型暂不支持，显示错误信息
           const supportedSDKs = {
-            'google': 'Google AI (Gemini)',
             'anthropic': 'Anthropic (Claude)',
             'azure': 'Azure OpenAI'
           }
           const sdkName = supportedSDKs[currentModel.sdkId] || currentModel.sdkId
-          addAIMessage(`错误：${sdkName} SDK暂未实现，目前仅支持 OpenAI 和 Azure OpenAI。请选择 OpenAI 或 Azure OpenAI 模型，或等待后续版本支持。`)
+          addAIMessage(`错误：${sdkName} SDK暂未实现，目前支持 OpenAI、Azure OpenAI 和 Google AI。请选择支持的模型类型，或等待后续版本支持。`)
         }
       } catch (error) {
         console.error('发送消息失败:', error)
@@ -403,6 +406,124 @@ export default {
           aiMessage.content = `抱歉，OpenAI API调用失败: ${error.message}`
         } else {
           addAIMessage(`抱歉，OpenAI API调用失败: ${error.message}`)
+        }
+        saveChatsToStorage()
+      }
+    }
+
+    // 处理Google AI API响应
+    const handleGoogleAIResponse = async (content, files, currentModel) => {
+      let aiMessage = null
+      
+      try {
+        // 验证模型配置
+        if (!currentModel.apiKey) {
+          addAIMessage('错误：未配置Google AI API密钥，请在设置中配置。')
+          return
+        }
+
+        // 配置Google AI服务
+        console.log('配置Google AI服务:', {
+          hasApiKey: !!currentModel.apiKey,
+          baseURL: currentModel.baseUrl || 'https://generativelanguage.googleapis.com',
+          modelName: currentModel.modelName
+        });
+        
+        googleaiService.configure({
+          apiKey: currentModel.apiKey,
+          baseURL: currentModel.baseUrl || 'https://generativelanguage.googleapis.com'
+        })
+
+        // 构建消息历史
+        const chatHistory = messages.value[currentChatId.value] || []
+        const apiMessages = chatHistory
+          .slice(0, -1) // 排除刚添加的用户消息
+          .filter(msg => msg.role === 'user' || msg.role === 'assistant')
+          .map(msg => ({
+            role: msg.role,
+            content: msg.content
+          }))
+
+        // 添加当前用户消息
+        if (files && files.length > 0) {
+          const imageFiles = files.filter(file => file.type.startsWith('image/'))
+          if (imageFiles.length > 0) {
+            // 处理图片消息
+            const messageContent = [{ type: 'text', text: content || '请分析这些图片' }]
+            for (const file of imageFiles) {
+              const base64 = await convertFileToBase64(file)
+              messageContent.push({
+                type: 'image_url',
+                image_url: { url: base64 }
+              })
+            }
+            apiMessages.push({ role: 'user', content: messageContent })
+          } else {
+            apiMessages.push({ role: 'user', content: content || '请分析这些文件' })
+          }
+        } else {
+          apiMessages.push({ role: 'user', content: content })
+        }
+
+        // 添加AI消息占位符
+        aiMessage = addAIMessage('正在思考...')
+
+        // 发送请求到Google AI
+        console.log('发送消息到Google AI:', {
+          messagesCount: apiMessages.length,
+          model: currentModel.modelName,
+          lastMessage: apiMessages[apiMessages.length - 1]
+        });
+        
+        await googleaiService.sendMessage(apiMessages, {
+          model: currentModel.modelName,
+          stream: true,
+          onChunk: (chunk) => {
+            console.log('收到Google AI chunk回调:', chunk?.length || 0, '字符');
+            // 更新AI消息内容
+            if (aiMessage) {
+              // 找到消息在数组中的索引并更新
+              const messageList = messages.value[currentChatId.value]
+              const messageIndex = messageList.findIndex(msg => msg.id === aiMessage.id)
+              if (messageIndex !== -1) {
+                messageList[messageIndex].content = chunk
+                saveChatsToStorage()
+              }
+            }
+          },
+          onComplete: (finalContent) => {
+            console.log('收到Google AI完成回调:', finalContent?.length || 0, '字符');
+            if (aiMessage) {
+              // 找到消息在数组中的索引并更新
+              const messageList = messages.value[currentChatId.value]
+              const messageIndex = messageList.findIndex(msg => msg.id === aiMessage.id)
+              if (messageIndex !== -1) {
+                messageList[messageIndex].content = finalContent
+                saveChatsToStorage()
+                
+                // 更新聊天的最后消息
+                const chat = chats.value.find(c => c.id === currentChatId.value)
+                if (chat) {
+                  chat.lastMessage = finalContent
+                }
+              }
+            }
+          },
+          onError: (error) => {
+            console.log('收到Google AI错误回调:', error);
+            if (aiMessage) {
+              aiMessage.content = `抱歉，发生错误: ${error.message}`
+              saveChatsToStorage()
+            }
+          }
+        })
+
+      } catch (error) {
+        console.error('Google AI API调用失败:', error)
+        if (aiMessage) {
+          aiMessage.content = `抱歉，Google AI API调用失败: ${error.message}`
+        } else {
+          addAIMessage(`抱歉，Google AI API调用失败: ${error.message}`)
         }
         saveChatsToStorage()
       }
