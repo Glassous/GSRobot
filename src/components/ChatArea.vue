@@ -57,7 +57,8 @@
               <!-- AI消息使用Markdown渲染 -->
               <MarkdownRenderer 
                 v-if="message.role === 'assistant'" 
-                :content="message.content" 
+                :content="message.content"
+                :renderMode="renderMode"
               />
               <!-- 用户消息保持原样 -->
               <p 
@@ -205,6 +206,13 @@ export default {
     const messageInput = ref(null)
     const fileInput = ref(null)
     const selectedFiles = ref([])
+    const renderMode = ref('normal')
+
+    // 加载渲染模式设置
+    const loadRenderMode = () => {
+      const savedRenderMode = localStorage.getItem('gsrobot-render-mode') || 'normal'
+      renderMode.value = savedRenderMode
+    }
 
     // 发送消息
     const sendMessage = async () => {
@@ -335,11 +343,36 @@ export default {
       })
     })
 
-    // 组件挂载时初始化textarea高度
+    // 监听localStorage变化，实时更新渲染模式
+    const handleStorageChange = (e) => {
+      if (e.key === 'gsrobot-render-mode') {
+        renderMode.value = e.newValue || 'normal'
+      }
+    }
+
+    // 组件挂载时初始化textarea高度和加载渲染模式
     onMounted(() => {
       nextTick(() => {
         adjustTextareaHeight()
       })
+      loadRenderMode()
+      
+      // 监听localStorage变化
+      window.addEventListener('storage', handleStorageChange)
+      
+      // 监听页面可见性变化，当从设置页面返回时重新加载渲染模式
+      const handleVisibilityChange = () => {
+        if (!document.hidden) {
+          loadRenderMode()
+        }
+      }
+      document.addEventListener('visibilitychange', handleVisibilityChange)
+      
+      // 组件卸载时移除监听器
+      return () => {
+        window.removeEventListener('storage', handleStorageChange)
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+      }
     })
 
     return {
@@ -349,6 +382,7 @@ export default {
       messageInput,
       fileInput,
       selectedFiles,
+      renderMode,
       sendMessage,
       addNewLine,
       formatTime,

@@ -29,7 +29,7 @@
           <h2 class="card-title text-lg mb-4">外观设置</h2>
           
           <!-- 主题选择 -->
-          <div class="form-control">
+          <div class="form-control mb-6">
             <label class="label">
               <span class="label-text font-medium">主题模式</span>
             </label>
@@ -70,6 +70,44 @@
                 </svg>
                 深色
               </button>
+            </div>
+          </div>
+
+          <!-- 源码呈现模式 -->
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-medium">内容呈现模式</span>
+            </label>
+            <div class="flex gap-2 flex-wrap">
+              <button 
+                @click="changeRenderMode('normal')"
+                :class="[
+                  'btn flex-1 min-w-0',
+                  renderMode === 'normal' ? 'btn-primary' : 'btn-outline'
+                ]"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                标准模式
+              </button>
+              <button 
+                @click="changeRenderMode('source')"
+                :class="[
+                  'btn flex-1 min-w-0',
+                  renderMode === 'source' ? 'btn-primary' : 'btn-outline'
+                ]"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+                源码模式
+              </button>
+            </div>
+            <div class="label">
+              <span class="label-text-alt text-base-content/60">
+                源码模式下将直接显示原始内容，不进行Markdown渲染和深度思考处理
+              </span>
             </div>
           </div>
         </div>
@@ -148,6 +186,7 @@ export default {
     const selectedTheme = ref('system')
     const selectedModelId = ref('')
     const availableModels = ref([])
+    const renderMode = ref('normal')
 
     // 加载可用模型列表
     const loadAvailableModels = () => {
@@ -185,9 +224,11 @@ export default {
     const loadSettings = () => {
       const savedTheme = localStorage.getItem('gsrobot-theme') || 'system'
       const savedSelectedModel = localStorage.getItem('gsrobot-selected-model') || ''
+      const savedRenderMode = localStorage.getItem('gsrobot-render-mode') || 'normal'
       
       selectedTheme.value = savedTheme
       selectedModelId.value = savedSelectedModel
+      renderMode.value = savedRenderMode
       
       loadAvailableModels()
       applyTheme(savedTheme)
@@ -211,6 +252,14 @@ export default {
       }
       applyTheme(selectedTheme.value)
       localStorage.setItem('gsrobot-theme', selectedTheme.value)
+    }
+
+    // 更改渲染模式
+    const changeRenderMode = (mode) => {
+      if (mode) {
+        renderMode.value = mode
+        localStorage.setItem('gsrobot-render-mode', mode)
+      }
     }
 
     // 返回主页
@@ -316,7 +365,9 @@ export default {
       selectedTheme,
       selectedModelId,
       availableModels,
+      renderMode,
       changeTheme,
+      changeRenderMode,
       saveSettings,
       goBackToHome,
       goToAIConfig,

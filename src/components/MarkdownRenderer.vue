@@ -16,6 +16,10 @@ const props = defineProps({
   content: {
     type: String,
     required: true
+  },
+  renderMode: {
+    type: String,
+    default: 'normal' // 'normal' 或 'source'
   }
 })
 
@@ -72,6 +76,43 @@ marked.setOptions({
   sanitize: false,
 })
 
+// 处理深度思考内容（展开与折叠）
+const processThinkingContent = (content) => {
+  // 确保content是字符串类型
+  const contentString = String(content || '')
+  
+  // 简化正则表达式：匹配从"思考过程"到"完整回复"的完整内容
+  const thinkingRegex = /={20}思考过程={20}\s*([\s\S]*?)\s*={20}完整回复={20}\s*([\s\S]*)/g
+  
+  let processedContent = contentString
+  let thinkingIndex = 0
+  
+  processedContent = processedContent.replace(thinkingRegex, (match, thinkingProcess, finalReply) => {
+    thinkingIndex++
+    const thinkingId = `thinking-${thinkingIndex}-${Date.now()}`
+    
+    // 清理内容
+    const cleanThinking = String(thinkingProcess || '').trim()
+    const cleanReply = String(finalReply || '').trim()
+    
+    return `
+<div class="thinking-container">
+  <div class="thinking-content" id="${thinkingId}" style="display: none;">
+    <pre class="thinking-process">${cleanThinking}</pre>
+  </div>
+  <div class="thinking-toggle" onclick="toggleThinking('${thinkingId}')">
+    <span class="thinking-label">💭 思考过程</span>
+    <span class="thinking-chevron">▼</span>
+  </div>
+  <div class="thinking-reply">
+${cleanReply}
+  </div>
+</div>`
+  })
+  
+  return processedContent
+}
+
 // 处理LaTeX数学公式
 const processLatex = (content) => {
   // 确保content是字符串类型
@@ -119,8 +160,14 @@ const renderedContent = computed(() => {
     // 确保content是字符串类型
     const contentString = String(props.content || '')
     
-    // 先处理LaTeX公式，再处理Markdown
-    let processedContent = processLatex(contentString)
+    // 源码模式：直接显示原始内容，不进行任何处理
+    if (props.renderMode === 'source') {
+      return `<pre class="source-code">${contentString.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`
+    }
+    
+    // 标准模式：处理顺序：深度思考内容 -> LaTeX公式 -> Markdown
+    let processedContent = processThinkingContent(contentString)
+    processedContent = processLatex(processedContent)
     let html = marked(processedContent)
     
     return html
@@ -129,6 +176,27 @@ const renderedContent = computed(() => {
     return String(props.content || '')
   }
 })
+
+// 添加全局思考内容切换函数
+const addThinkingFunction = () => {
+  if (typeof window !== 'undefined') {
+    window.toggleThinking = function(thinkingId) {
+      const content = document.getElementById(thinkingId)
+      const toggle = content.parentElement.querySelector('.thinking-toggle')
+      const chevron = toggle.querySelector('.thinking-chevron')
+      
+      if (content.style.display === 'none') {
+        content.style.display = 'block'
+        chevron.textContent = '▲'
+        toggle.classList.add('expanded')
+      } else {
+        content.style.display = 'none'
+        chevron.textContent = '▼'
+        toggle.classList.remove('expanded')
+      }
+    }
+  }
+}
 
 // 添加全局复制函数
 const addCopyFunction = () => {
@@ -165,6 +233,7 @@ const updateContent = async () => {
     contentRef.value.innerHTML = renderedContent.value
     await nextTick()
     addCopyFunction()
+    addThinkingFunction()
   }
 }
 
@@ -393,6 +462,119 @@ onMounted(() => {
   
   .markdown-content :deep(pre) {
     background-color: #1f2937;
+  }
+}
+
+/* 深度思考内容样式 - 简约风格 */
+.markdown-content :deep(.thinking-container) {
+  margin: 1rem 0;
+  border-left: 3px solid #e5e7eb;
+  padding-left: 1rem;
+}
+
+.markdown-content :deep(.thinking-toggle) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  cursor: pointer;
+  user-select: none;
+  color: #6b7280;
+  font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.markdown-content :deep(.thinking-toggle:hover) {
+  color: #374151;
+}
+
+.markdown-content :deep(.thinking-toggle.expanded) {
+  color: #374151;
+}
+
+.markdown-content :deep(.thinking-label) {
+  font-weight: 500;
+}
+
+.markdown-content :deep(.thinking-chevron) {
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.markdown-content :deep(.thinking-content) {
+  margin: 8px 0;
+}
+
+.markdown-content :deep(.thinking-process) {
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #6b7280;
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  overflow-x: auto;
+}
+
+.markdown-content :deep(.thinking-reply) {
+  margin-top: 1rem;
+  color: #374151;
+  line-height: 1.6;
+}
+
+/* 暗色主题适配 */
+@media (prefers-color-scheme: dark) {
+  .markdown-content :deep(.thinking-container) {
+    border-left-color: #4b5563;
+  }
+  
+  .markdown-content :deep(.thinking-toggle) {
+    color: #9ca3af;
+  }
+  
+  .markdown-content :deep(.thinking-toggle:hover) {
+    color: #f3f4f6;
+  }
+  
+  .markdown-content :deep(.thinking-toggle.expanded) {
+    color: #f3f4f6;
+  }
+  
+  .markdown-content :deep(.thinking-process) {
+    background-color: #1f2937;
+    border-color: #374151;
+    color: #9ca3af;
+  }
+  
+  .markdown-content :deep(.thinking-reply) {
+    color: #f3f4f6;
+  }
+}
+
+/* 源码模式样式 */
+.markdown-content :deep(.source-code) {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 16px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #24292f;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-x: auto;
+  margin: 0;
+}
+
+/* 源码模式暗色主题 */
+@media (prefers-color-scheme: dark) {
+  .markdown-content :deep(.source-code) {
+    background-color: #0d1117;
+    border-color: #30363d;
+    color: #f0f6fc;
   }
 }
 </style>
