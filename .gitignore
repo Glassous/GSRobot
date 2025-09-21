@@ -22,3 +22,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Capacitor
+## Android
+android/
+!android/.gitignore
+
+## iOS
+ios/
+!ios/.gitignore
+
+## Web
+capacitor.config.json

@@ -106,7 +106,7 @@
             </div>
             <div class="label">
               <span class="label-text-alt text-base-content/60">
-                源码模式下将直接显示原始内容，不进行Markdown渲染和深度思考处理
+                源码模式下将直接显示原始内容
               </span>
             </div>
           </div>

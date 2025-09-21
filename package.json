@@ -6,10 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build-mobile": "vite build && cap sync",
+    "open-android": "cap open android",
+    "open-ios": "cap open ios"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.63.0",
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/cli": "^7.4.3",
+    "@capacitor/core": "^7.4.3",
+    "@capacitor/ios": "^7.4.3",
     "@google/genai": "^1.20.0",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.22",
