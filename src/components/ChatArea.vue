@@ -5,16 +5,31 @@
       <!-- 欢迎界面 -->
       <div v-if="!currentChat || messages.length === 0" class="flex items-center justify-center h-full">
         <div class="text-center max-w-md">
-          <div class="mb-6">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-primary opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.955 8.955 0 01-2.697-.413l-3.178 1.589a1 1 0 01-1.414-1.414l1.589-3.178A8.955 8.955 0 013 12c0-4.418 3.582-8 8-8s8 3.582 8 8z" />
+          <h2 class="text-2xl font-bold mb-2">{{ greeting }}，欢迎使用 GSRobot</h2>
+        
+        <!-- 输入建议按钮 -->
+        <div class="flex flex-wrap justify-center gap-2 mt-6">
+          <button 
+            v-for="suggestion in inputSuggestions" 
+            :key="suggestion.label"
+            @click="fillInput(suggestion.prompt)"
+            class="btn btn-sm btn-outline"
+          >
+            {{ suggestion.label }}
+          </button>
+        </div>
+        <!-- 换一批按钮 -->
+        <div class="flex justify-center mt-4">
+          <button 
+            @click="refreshSuggestions" 
+            class="btn btn-sm btn-ghost flex items-center gap-1"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-          </div>
-          <h2 class="text-2xl font-bold mb-2">欢迎使用 GSRobot</h2>
-          <p class="text-base-content/60 mb-6">
-            我是您的AI助手，可以帮助您解答问题、提供建议或进行对话。
-          </p>
-
+            换一批
+          </button>
+        </div>
         </div>
       </div>
 
@@ -180,7 +195,7 @@
 </template>
 
 <script>
-import { ref, nextTick, watch, onMounted } from 'vue'
+import { ref, nextTick, watch, onMounted, computed } from 'vue'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 
 export default {
@@ -207,6 +222,85 @@ export default {
     const fileInput = ref(null)
     const selectedFiles = ref([])
     const renderMode = ref('normal')
+
+    // 获取问候语
+    const greeting = computed(() => {
+      const hour = new Date().getHours()
+      if (hour < 6) {
+        return '凌晨好'
+      } else if (hour < 9) {
+        return '早上好'
+      } else if (hour < 12) {
+        return '上午好'
+      } else if (hour < 14) {
+        return '中午好'
+      } else if (hour < 18) {
+        return '下午好'
+      } else if (hour < 22) {
+        return '晚上好'
+      } else {
+        return '夜深了'
+      }
+    })
+
+    // 输入建议
+    const allInputSuggestions = [
+      { label: '写作', prompt: '请帮我写一篇关于以下主题的文章：' },
+      { label: '翻译', prompt: '请将以下内容翻译成中文：' },
+      { label: '编程', prompt: '请用 Python 编写一个函数来实现以下功能：' },
+      { label: '代码解释', prompt: '请解释以下代码的作用：' },
+      { label: '学习', prompt: '请详细解释以下概念：' },
+      { label: '创意', prompt: '请给我一些关于以下主题的创意点子：' },
+      { label: '总结', prompt: '请总结以下内容的要点：' },
+      { label: '润色', prompt: '请优化以下文本，使其更流畅自然：' },
+      { label: '分析', prompt: '请深入分析以下内容：' },
+      { label: '计划', prompt: '请为我制定一个详细的计划：' },
+      { label: '邮件', prompt: '请帮我写一封专业的邮件，主题是：' },
+      { label: '故事', prompt: '请讲一个关于以下主题的故事：' },
+      { label: '诗歌', prompt: '请写一首关于以下主题的诗歌：' },
+      { label: '演讲', prompt: '请为我准备一篇演讲稿，主题是：' },  
+      { label: '简历', prompt: '请帮我优化简历中的以下部分：' },
+      { label: '营销', prompt: '请为我们的产品制定一个营销策略：' },
+      { label: '报告', prompt: '请帮我撰写一份关于以下主题的报告：' },
+      { label: '调研', prompt: '请帮我进行以下主题的调研并总结：' },
+      { label: '面试', prompt: '请帮我准备面试中可能会遇到的问题：' },
+      { label: '对比', prompt: '请对以下两个事物进行比较并分析优缺点：' }
+    ]
+
+    // 随机选择5个建议
+    const inputSuggestions = ref([])
+    
+    // 初始化建议
+    const initializeSuggestions = () => {
+      // 创建一个副本以避免修改原数组
+      const shuffled = [...allInputSuggestions].sort(() => 0.5 - Math.random())
+      // 返回前5个元素
+      inputSuggestions.value = shuffled.slice(0, 5)
+    }
+    
+    // 刷新建议
+    const refreshSuggestions = () => {
+      initializeSuggestions()
+    }
+    
+    // 组件挂载时初始化建议
+    onMounted(() => {
+      initializeSuggestions()
+    })
+
+    // 填充输入框
+    const fillInput = (prompt) => {
+      inputMessage.value = prompt
+      // 聚焦到输入框
+      nextTick(() => {
+        messageInput.value?.focus()
+        // 将光标移到末尾
+        if (messageInput.value) {
+          messageInput.value.selectionStart = prompt.length
+          messageInput.value.selectionEnd = prompt.length
+        }
+      })
+    }
 
     // 加载渲染模式设置
     const loadRenderMode = () => {
@@ -383,6 +477,10 @@ export default {
       fileInput,
       selectedFiles,
       renderMode,
+      greeting,
+      inputSuggestions,
+      fillInput,
+      refreshSuggestions,
       sendMessage,
       addNewLine,
       formatTime,
