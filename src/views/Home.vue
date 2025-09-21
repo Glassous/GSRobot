@@ -265,9 +265,6 @@ export default {
         if (currentModel.sdkId === 'openai') {
           // 使用OpenAI API
           await handleOpenAIResponse(content, files, currentModel)
-        } else if (currentModel.sdkId === 'azure') {
-          // Azure OpenAI 使用相同的API格式
-          await handleOpenAIResponse(content, files, currentModel)
         } else if (currentModel.sdkId === 'google') {
           // 使用Google AI API
           await handleGoogleAIResponse(content, files, currentModel)
@@ -276,11 +273,7 @@ export default {
           await handleAnthropicResponse(content, files, currentModel)
         } else {
           // 其他SDK类型暂不支持，显示错误信息
-          const supportedSDKs = {
-            'azure': 'Azure OpenAI'
-          }
-          const sdkName = supportedSDKs[currentModel.sdkId] || currentModel.sdkId
-          addAIMessage(`错误：${sdkName} SDK暂未实现，目前支持 OpenAI、Azure OpenAI、Google AI 和 Anthropic。请选择支持的模型类型，或等待后续版本支持。`)
+          addAIMessage(`错误：${currentModel.sdkId} SDK暂未实现，目前支持 OpenAI、Google AI 和 Anthropic。请选择支持的模型类型，或等待后续版本支持。`)
         }
       } catch (error) {
         console.error('发送消息失败:', error)

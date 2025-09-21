@@ -235,13 +235,6 @@ export default {
         description: '基于Anthropic SDK的模型配置',
         expanded: false,
         groups: []
-      },
-      {
-        id: 'azure',
-        name: 'Azure OpenAI',
-        description: '基于Azure OpenAI SDK的模型配置',
-        expanded: false,
-        groups: []
       }
     ])
 
@@ -287,9 +280,6 @@ export default {
           switch (sdkId) {
             case 'openai':
               defaultBaseUrl = 'https://api.openai.com/v1'
-              break
-            case 'azure':
-              defaultBaseUrl = 'https://your-resource.openai.azure.com'
               break
           }
           newGroup.baseUrl = defaultBaseUrl
