@@ -80,41 +80,32 @@
         <div class="card-body">
           <h2 class="card-title text-lg mb-4">AI配置</h2>
           
-          <!-- API密钥 -->
-          <div class="form-control mb-4">
-            <label class="label">
-              <span class="label-text font-medium">API Key</span>
-            </label>
-            <input 
-              v-model="apiKey"
-              type="password" 
-              placeholder="请输入您的API密钥" 
-              class="input input-bordered w-full"
-            />
-          </div>
-
           <!-- 模型选择 -->
           <div class="form-control mb-4">
             <label class="label">
               <span class="label-text font-medium">AI模型</span>
+              <button @click="goToAIConfig" class="btn btn-outline btn-xs">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                配置
+              </button>
             </label>
-            <input 
-              v-model="selectedModel"
-              type="text" 
-              placeholder="请输入AI模型名称" 
-              class="input input-bordered w-full"
-            />
-          </div>
-
-
-
-
-
-          <!-- 保存按钮 -->
-          <div class="card-actions justify-end">
-            <button @click="saveSettings" class="btn btn-primary">
-              保存设置
-            </button>
+            <select 
+              v-model="selectedModelId" 
+              @change="onModelChange"
+              class="select select-bordered w-full"
+            >
+              <option value="">请选择AI模型</option>
+              <option 
+                v-for="model in availableModels" 
+                :key="model.id" 
+                :value="model.id"
+              >
+                {{ model.displayName }} ({{ model.provider }})
+              </option>
+            </select>
           </div>
         </div>
       </div>
@@ -125,7 +116,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 export default {
@@ -133,19 +124,50 @@ export default {
   setup() {
     const router = useRouter()
     const selectedTheme = ref('system')
-    const apiKey = ref('')
-    const selectedModel = ref('')
+    const selectedModelId = ref('')
+    const availableModels = ref([])
+
+    // 加载可用模型列表
+    const loadAvailableModels = () => {
+      const savedConfig = localStorage.getItem('gsrobot-ai-config')
+      const models = []
+      
+      if (savedConfig) {
+        try {
+          const config = JSON.parse(savedConfig)
+          config.forEach(sdk => {
+            sdk.groups?.forEach(group => {
+              group.models?.forEach(model => {
+                if (model.name && model.displayName) {
+                  models.push({
+                    id: model.id,
+                    name: model.name,
+                    displayName: model.displayName,
+                    provider: `${sdk.name} - ${group.name}`,
+                    sdkId: sdk.id,
+                    groupId: group.id
+                  })
+                }
+              })
+            })
+          })
+        } catch (e) {
+          console.error('加载模型配置失败:', e)
+        }
+      }
+      
+      availableModels.value = models
+    }
 
     // 加载设置
     const loadSettings = () => {
       const savedTheme = localStorage.getItem('gsrobot-theme') || 'system'
-      const savedApiKey = localStorage.getItem('gsrobot-api-key') || ''
-      const savedModel = localStorage.getItem('gsrobot-model') || ''
-
+      const savedSelectedModel = localStorage.getItem('gsrobot-selected-model') || ''
+      
       selectedTheme.value = savedTheme
-      apiKey.value = savedApiKey
-      selectedModel.value = savedModel
-
+      selectedModelId.value = savedSelectedModel
+      
+      loadAvailableModels()
       applyTheme(savedTheme)
     }
 
@@ -176,11 +198,32 @@ export default {
       router.push('/')
     }
 
+    // 跳转到AI配置页面
+    const goToAIConfig = () => {
+      router.push('/ai-config')
+    }
+
+    // 模型选择变化处理
+    const onModelChange = () => {
+      localStorage.setItem('gsrobot-selected-model', selectedModelId.value)
+      
+      // 更新当前模型信息用于其他组件
+      const selectedModel = availableModels.value.find(m => m.id === selectedModelId.value)
+      if (selectedModel) {
+        const currentModelInfo = {
+          name: selectedModel.displayName,
+          provider: selectedModel.provider
+        }
+        localStorage.setItem('gsrobot-current-model', JSON.stringify(currentModelInfo))
+      } else {
+        localStorage.removeItem('gsrobot-current-model')
+      }
+    }
+
     // 保存设置
     const saveSettings = () => {
       localStorage.setItem('gsrobot-theme', selectedTheme.value)
-      localStorage.setItem('gsrobot-api-key', apiKey.value)
-      localStorage.setItem('gsrobot-model', selectedModel.value)
+      onModelChange() // 确保模型选择也被保存
 
       // 显示保存成功提示
       const toast = document.createElement('div')
@@ -210,15 +253,31 @@ export default {
     onMounted(() => {
       loadSettings()
       setupSystemThemeListener()
+      
+      // 监听页面可见性变化，当从其他页面返回时重新加载数据
+      const handleVisibilityChange = () => {
+        if (!document.hidden) {
+          loadAvailableModels()
+        }
+      }
+      
+      document.addEventListener('visibilitychange', handleVisibilityChange)
+      
+      // 组件卸载时移除监听器
+      onUnmounted(() => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+      })
     })
 
     return {
       selectedTheme,
-      apiKey,
-      selectedModel,
+      selectedModelId,
+      availableModels,
       changeTheme,
       saveSettings,
-      goBackToHome
+      goBackToHome,
+      goToAIConfig,
+      onModelChange
     }
   }
 }
