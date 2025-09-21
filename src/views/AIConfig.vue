@@ -432,6 +432,7 @@
 <script>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { Capacitor } from '@capacitor/core'
 
 export default {
   name: 'AIConfig',
@@ -696,42 +697,84 @@ export default {
     }
 
     // 导入配置
-    const importConfig = () => {
-      fileInput.value?.click()
+    const importConfig = async () => {
+      // 检查是否在Capacitor环境中
+      if (Capacitor.isNativePlatform()) {
+        try {
+          // 动态导入FilePicker插件
+          const { FilePicker } = await import('@capawesome/capacitor-file-picker')
+          
+          // 使用Capacitor File Picker选择文件
+          const result = await FilePicker.pickFiles({
+            types: ['application/json'],
+            multiple: false
+          })
+          
+          if (result.files && result.files.length > 0) {
+            const file = result.files[0]
+            
+            // 在Capacitor环境中，使用fetch读取文件内容
+            if (file.blob) {
+              const text = await file.blob.text()
+              await processImportData(text)
+            } else if (file.path) {
+              // 如果没有blob，尝试使用fetch读取文件路径
+              const response = await fetch(Capacitor.convertFileSrc(file.path))
+              const text = await response.text()
+              await processImportData(text)
+            }
+          }
+        } catch (error) {
+          console.error('Capacitor文件选择失败:', error)
+          showErrorToast('文件选择失败，请重试')
+        }
+      } else {
+        // 在浏览器环境中使用传统的文件输入
+        fileInput.value?.click()
+      }
     }
 
-    // 处理文件选择
-    const handleFileSelect = (event) => {
+    // 处理导入数据的通用函数
+    const processImportData = async (text) => {
+      try {
+        const importData = JSON.parse(text)
+        
+        // 验证导入数据格式
+        if (!importData.config || !Array.isArray(importData.config)) {
+          throw new Error('无效的配置文件格式')
+        }
+
+        pendingImportData = importData.config
+        showImportDialog.value = true
+      } catch (error) {
+        console.error('读取配置文件失败:', error)
+        showErrorToast('配置文件格式错误')
+      }
+    }
+
+    // 显示错误提示的通用函数
+    const showErrorToast = (message) => {
+      const toast = document.createElement('div')
+      toast.className = 'toast toast-top toast-center'
+      toast.innerHTML = `
+        <div class="alert alert-error">
+          <span>${message}</span>
+        </div>
+      `
+      document.body.appendChild(toast)
+      setTimeout(() => {
+        document.body.removeChild(toast)
+      }, 2000)
+    }
+
+    // 处理文件选择（仅用于浏览器环境）
+    const handleFileSelect = async (event) => {
       const file = event.target.files[0]
       if (!file) return
 
       const reader = new FileReader()
-      reader.onload = (e) => {
-        try {
-          const importData = JSON.parse(e.target.result)
-          
-          // 验证导入数据格式
-          if (!importData.config || !Array.isArray(importData.config)) {
-            throw new Error('无效的配置文件格式')
-          }
-
-          pendingImportData = importData.config
-          showImportDialog.value = true
-        } catch (error) {
-          console.error('读取配置文件失败:', error)
-          // 显示错误提示
-          const toast = document.createElement('div')
-          toast.className = 'toast toast-top toast-center'
-          toast.innerHTML = `
-            <div class="alert alert-error">
-              <span>配置文件格式错误</span>
-            </div>
-          `
-          document.body.appendChild(toast)
-          setTimeout(() => {
-            document.body.removeChild(toast)
-          }, 2000)
-        }
+      reader.onload = async (e) => {
+        await processImportData(e.target.result)
       }
       reader.readAsText(file)
       
