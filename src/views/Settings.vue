@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-base-100">
     <!-- 顶部导航栏 -->
-    <div class="navbar bg-base-200 shadow-sm border-b border-base-300 fixed top-0 left-0 right-0 z-40">
+    <div class="navbar bg-base-200 shadow-sm border-b border-base-300 fixed left-0 right-0 z-40 top-0">
       <!-- 左侧返回按钮 -->
       <div class="navbar-start">
         <button @click="goBackToHome" class="btn btn-ghost btn-circle" aria-label="Back to home">
@@ -22,7 +22,7 @@
     </div>
 
     <!-- 设置内容 -->
-    <div class="container mx-auto p-6 max-w-2xl pt-20">
+    <div class="container mx-auto p-6 max-w-2xl pt-20 content-area">
       <!-- 外观设置 -->
       <div class="card bg-base-200 shadow-sm mb-6">
         <div class="card-body">

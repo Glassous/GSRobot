@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-base-100">
     <!-- 顶部导航栏 -->
-    <div class="navbar bg-base-200 shadow-sm border-b border-base-300 fixed top-0 left-0 right-0 z-40">
+    <div class="navbar bg-base-200 shadow-sm border-b border-base-300 fixed left-0 right-0 z-40 top-0">
       <!-- 左侧返回按钮 -->
       <div class="navbar-start">
         <button @click="goBack" class="btn btn-ghost btn-circle" aria-label="Back">
@@ -22,7 +22,7 @@
     </div>
 
     <!-- 配置内容 -->
-    <div class="container mx-auto p-6 max-w-4xl pt-20">
+    <div class="container mx-auto p-6 max-w-4xl pt-20 content-area">
       <!-- 顶部按钮组（新位置） -->
       <div class="flex gap-2 mb-6 justify-end">
         <!-- 下载模板按钮 -->

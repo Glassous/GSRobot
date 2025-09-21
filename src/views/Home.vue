@@ -43,7 +43,7 @@
     </div>
 
     <!-- 主要内容区域 -->
-    <div class="flex h-[calc(100vh-4rem)]">
+    <div class="flex h-[calc(100vh-4rem)] content-area">
       <!-- 侧边栏 -->
       <div 
         :class="[
