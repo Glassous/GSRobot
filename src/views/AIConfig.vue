@@ -25,6 +25,10 @@
     <div class="container mx-auto p-6 max-w-4xl pt-20">
       <!-- 顶部按钮组（新位置） -->
       <div class="flex gap-2 mb-6 justify-end">
+        <!-- 配置教程按钮 -->
+        <button @click="showTutorial" class="btn btn-outline btn-sm">
+          配置教程
+        </button>
         <!-- 清除所有模型按钮 -->
         <button @click="clearAllModels" class="btn btn-error btn-sm">
           清除所有
@@ -306,6 +310,119 @@
       </div>
     </div>
   </div>
+  
+  <!-- 配置教程弹窗 -->
+  <div v-if="showTutorialDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-base-100 rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+      <div class="flex justify-between items-center border-b border-base-300 p-4">
+        <h3 class="text-lg font-bold">AI模型配置教程</h3>
+        <button @click="closeTutorial" class="btn btn-sm btn-circle btn-ghost">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="overflow-y-auto p-4 flex-1">
+        <div class="prose max-w-none">
+          <h4 class="text-md font-bold mb-2">配置步骤</h4>
+          <ol class="list-decimal list-inside space-y-2">
+            <li>选择对应的AI服务提供商（OpenAI、Google AI或Anthropic）</li>
+            <li>点击"添加组"按钮创建新的配置组</li>
+            <li>为组设置一个易于识别的名称</li>
+            <li>填入您的API Key（部分提供商还需要填写Base URL）</li>
+            <li>在组内添加需要使用的模型名称和显示名称</li>
+            <li>点击"保存"按钮保存配置</li>
+            <li>在模型列表中选择默认使用的模型</li>
+          </ol>
+          
+          <h4 class="text-md font-bold mt-4 mb-2">注意事项</h4>
+          <ul class="list-disc list-inside space-y-2">
+            <li>API Key是敏感信息，请妥善保管</li>
+            <li>不同提供商的模型名称可能不同，请参考官方文档</li>
+            <li>配置完成后需要点击"保存"按钮才能生效</li>
+            <li>可以导出配置文件以便备份或迁移</li>
+          </ul>
+          
+          <h4 class="text-md font-bold mt-4 mb-2">常见问题</h4>
+          <div class="space-y-2">
+            <div>
+              <p class="font-medium">Q: 如何获取API Key？</p>
+              <p>A: 请前往对应AI服务提供商的官方网站申请API Key。</p>
+            </div>
+            <div>
+              <p class="font-medium">Q: 模型名称在哪里查看？</p>
+              <p>A: 请参考对应AI服务提供商的官方文档获取准确的模型名称。</p>
+            </div>
+          </div>
+
+          <h4 class="text-md font-bold mt-4 mb-2">各提供商Base URL和API Key获取地址</h4>
+          <div class="overflow-x-auto">
+            <table class="table table-zebra w-full">
+              <thead>
+                <tr>
+                  <th>提供商</th>
+                  <th>Base URL</th>
+                  <th>API Key获取地址</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>OpenAI</td>
+                  <td><code>https://api.openai.com/v1/chat/completions</code></td>
+                  <td><a href="https://platform.openai.com/api-keys" target="_blank" class="link link-primary">获取API Key</a></td>
+                </tr>
+                <tr>
+                  <td>xAI</td>
+                  <td><code>https://api.x.ai/v1</code></td>
+                  <td><a href="https://console.x.ai/" target="_blank" class="link link-primary">获取API Key</a></td>
+                </tr>
+                <tr>
+                  <td>Google</td>
+                  <td>无需base url</td>
+                  <td><a href="https://aistudio.google.com/apikey" target="_blank" class="link link-primary">获取API Key</a></td>
+                </tr>
+                <tr>
+                  <td>Anthropic</td>
+                  <td>无需base url</td>
+                  <td><a href="https://console.anthropic.com/settings/keys" target="_blank" class="link link-primary">获取API Key</a></td>
+                </tr>
+                <tr>
+                  <td>DeepSeek</td>
+                  <td><code>https://api.deepseek.com/v1</code></td>
+                  <td><a href="https://platform.deepseek.com/api_keys" target="_blank" class="link link-primary">获取API Key</a></td>
+                </tr>
+                <tr>
+                  <td>阿里云百炼</td>
+                  <td><code>https://dashscope.aliyuncs.com/compatible-mode/v1</code></td>
+                  <td><a href="https://bailian.console.aliyun.com/?tab=model#/api-key" target="_blank" class="link link-primary">获取API Key</a></td>
+                </tr>
+                <tr>
+                  <td>火山方舟</td>
+                  <td><code>https://ark.cn-beijing.volces.com/api/v3</code></td>
+                  <td><a href="https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey?apikey={}" target="_blank" class="link link-primary">获取API Key</a></td>
+                </tr>
+                <tr>
+                  <td>Moonshot</td>
+                  <td><code>https://api.moonshot.cn/v1</code></td>
+                  <td><a href="https://platform.moonshot.cn/console/api-keys" target="_blank" class="link link-primary">获取API Key</a></td>
+                </tr>
+                <tr>
+                  <td>OpenRouter</td>
+                  <td><code>https://openrouter.ai/api/v1</code></td>
+                  <td><a href="https://openrouter.ai/settings/keys" target="_blank" class="link link-primary">获取API Key</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="border-t border-base-300 p-4">
+        <div class="flex justify-end">
+          <button @click="closeTutorial" class="btn btn-primary">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -325,6 +442,9 @@ export default {
     
     // 清除所有模型相关
     const showClearDialog = ref(false)
+    
+    // 配置教程相关
+    const showTutorialDialog = ref(false)
     
     // SDK分组数据
     const sdkGroups = ref([
@@ -848,11 +968,22 @@ export default {
        }
      }
 
+    // 显示配置教程
+    const showTutorial = () => {
+      showTutorialDialog.value = true
+    }
+
+    // 关闭配置教程
+    const closeTutorial = () => {
+      showTutorialDialog.value = false
+    }
+
     return {
       sdkGroups,
       selectedModelId,
       showImportDialog,
       showClearDialog,
+      showTutorialDialog,
       fileInput,
       toggleSDK,
       toggleGroup,
@@ -871,6 +1002,8 @@ export default {
       confirmClear,
       cancelClear,
       downloadTemplate,
+      showTutorial,
+      closeTutorial,
       onModelSelect
     }
   }
