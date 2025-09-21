@@ -117,8 +117,8 @@
                     />
                   </div>
 
-                  <!-- Base URL (Google AI SDK不支持自定义baseURL，因此隐藏此字段) -->
-                  <div v-if="sdk.id !== 'google'" class="form-control">
+                  <!-- Base URL (Google AI SDK和Anthropic SDK不支持自定义baseURL，因此隐藏此字段) -->
+                  <div v-if="sdk.id !== 'google' && sdk.id !== 'anthropic'" class="form-control">
                     <label class="label">
                       <span class="label-text text-sm">Base URL</span>
                     </label>
@@ -281,8 +281,8 @@ export default {
           models: []
         }
         
-        // 根据SDK类型设置默认基础URL（Google AI SDK不支持自定义baseURL）
-        if (sdkId !== 'google') {
+        // 根据SDK类型设置默认基础URL（Google AI SDK和Anthropic SDK不支持自定义baseURL）
+        if (sdkId !== 'google' && sdkId !== 'anthropic') {
           let defaultBaseUrl = ''
           switch (sdkId) {
             case 'openai':
@@ -290,9 +290,6 @@ export default {
               break
             case 'azure':
               defaultBaseUrl = 'https://your-resource.openai.azure.com'
-              break
-            case 'anthropic':
-              defaultBaseUrl = 'https://api.anthropic.com'
               break
           }
           newGroup.baseUrl = defaultBaseUrl
