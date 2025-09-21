@@ -136,7 +136,8 @@
 </template>
 
 <script>
-import { computed, inject, ref, nextTick } from 'vue'
+import { computed, inject, ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import backButtonService from '../services/backButtonService.js'
 
 export default {
   name: 'Sidebar',
@@ -301,6 +302,48 @@ export default {
         props.saveChats()
       }
     }
+
+    // 自定义返回按钮处理器
+    const handleBackButton = () => {
+      // 如果有重命名模态框打开，优先关闭它
+      if (showRenameModal.value) {
+        cancelRename()
+        return true
+      }
+      
+      // 如果有删除确认模态框打开，优先关闭它
+      if (showDeleteModal.value) {
+        cancelDelete()
+        return true
+      }
+      
+      // 如果侧边栏打开，关闭侧边栏
+      if (props.isOpen) {
+        emit('close')
+        return true
+      }
+      
+      // 没有需要处理的，返回false
+      return false
+    }
+
+    // 监听侧边栏打开状态，动态注册/移除返回按钮处理器
+    watch(() => props.isOpen, (isOpen) => {
+      if (window.Capacitor) {
+        if (isOpen) {
+          backButtonService.addBackButtonHandler(handleBackButton)
+        } else {
+          backButtonService.removeBackButtonHandler(handleBackButton)
+        }
+      }
+    })
+
+    // 组件卸载时移除处理器
+    onUnmounted(() => {
+      if (window.Capacitor) {
+        backButtonService.removeBackButtonHandler(handleBackButton)
+      }
+    })
 
     return {
       filteredChats,

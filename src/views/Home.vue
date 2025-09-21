@@ -84,13 +84,14 @@
 </template>
 
 <script>
-import { ref, computed, provide, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, provide, onMounted, onUnmounted, watch, getCurrentInstance } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Sidebar from '../components/Sidebar.vue'
 import ChatArea from '../components/ChatArea.vue'
 import openaiService from '../services/openaiService.js'
 import googleaiService from '../services/googleaiService.js'
 import anthropicService from '../services/anthropicService.js'
+import backButtonService from '../services/backButtonService.js'
 
 export default {
   name: 'Home',
@@ -681,6 +682,18 @@ export default {
       return currentChatId.value ? messages.value[currentChatId.value] || [] : []
     })
 
+    // 自定义返回按钮处理器
+    const handleBackButton = () => {
+      // 如果侧边栏打开，优先关闭侧边栏
+      if (sidebarOpen.value) {
+        closeSidebar()
+        return true // 表示已处理
+      }
+      
+      // 侧边栏已关闭，返回false让系统处理（退出应用）
+      return false
+    }
+
     // 组件挂载时加载数据
     onMounted(() => {
       loadChatsFromStorage()
@@ -688,6 +701,11 @@ export default {
       
       // 添加localStorage监听
       window.addEventListener('storage', handleStorageChange)
+      
+      // 注册自定义返回按钮处理器
+      if (window.Capacitor) {
+        backButtonService.addBackButtonHandler(handleBackButton)
+      }
       
       // 检查是否来自设置页面
       const fromSettings = sessionStorage.getItem('gsrobot-from-settings')
@@ -704,6 +722,11 @@ export default {
     // 组件卸载时移除监听器
     onUnmounted(() => {
       window.removeEventListener('storage', handleStorageChange)
+      
+      // 移除自定义返回按钮处理器
+      if (window.Capacitor) {
+        backButtonService.removeBackButtonHandler(handleBackButton)
+      }
     })
 
     // 提供数据给子组件
