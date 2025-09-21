@@ -52,9 +52,6 @@
                 {{ chat.title || '新对话' }}
               </h3>
               
-              <p v-if="chat.lastMessage" class="text-xs text-base-content/60 truncate">
-                {{ chat.lastMessage }}
-              </p>
               <p class="text-xs text-base-content/40 mt-1">
                 {{ formatDate(chat.createdAt) }}
               </p>
