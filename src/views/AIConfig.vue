@@ -29,6 +29,10 @@
         <button @click="clearAllModels" class="btn btn-error btn-sm">
           清除所有
         </button>
+        <!-- 下载模板按钮 -->
+        <button @click="downloadTemplate" class="btn btn-outline btn-sm">
+          下载模板
+        </button>
         <!-- 导入按钮 -->
         <button @click="importConfig" class="btn btn-outline btn-sm">
           导入
@@ -739,6 +743,78 @@ export default {
       loadConfig()
     })
 
+    // 下载模板
+     const downloadTemplate = () => {
+       try {
+         const templateUrl = 'https://glescloud.oss-cn-beijing.aliyuncs.com/gsrobot-config.json'
+         
+         // 显示下载提示
+         const toast = document.createElement('div')
+         toast.className = 'toast toast-top toast-center'
+         toast.innerHTML = `
+           <div class="alert alert-info">
+             <span>正在打开下载链接...</span>
+           </div>
+         `
+         document.body.appendChild(toast)
+         
+         // 使用window.open下载文件
+         const newWindow = window.open(templateUrl, '_blank')
+         
+         // 如果浏览器阻止弹窗，则显示提示
+         if (!newWindow) {
+           document.body.removeChild(toast)
+           const errorToast = document.createElement('div')
+           errorToast.className = 'toast toast-top toast-center'
+           errorToast.innerHTML = `
+             <div class="alert alert-error">
+               <span>下载被浏览器阻止，请允许弹窗后重试</span>
+             </div>
+           `
+           document.body.appendChild(errorToast)
+           setTimeout(() => {
+             document.body.removeChild(errorToast)
+           }, 3000)
+           return
+         }
+         
+         // 移除提示
+         setTimeout(() => {
+           if (document.body.contains(toast)) {
+             document.body.removeChild(toast)
+           }
+         }, 2000)
+         
+         // 显示成功提示
+         const successToast = document.createElement('div')
+         successToast.className = 'toast toast-top toast-center'
+         successToast.innerHTML = `
+           <div class="alert alert-success">
+             <span>如果下载未开始，请检查弹窗阻止设置</span>
+           </div>
+         `
+         document.body.appendChild(successToast)
+         setTimeout(() => {
+           document.body.removeChild(successToast)
+         }, 3000)
+       } catch (error) {
+         console.error('下载模板失败:', error)
+         
+         // 显示错误提示
+         const errorToast = document.createElement('div')
+         errorToast.className = 'toast toast-top toast-center'
+         errorToast.innerHTML = `
+           <div class="alert alert-error">
+             <span>下载失败: ${error.message}</span>
+           </div>
+         `
+         document.body.appendChild(errorToast)
+         setTimeout(() => {
+           document.body.removeChild(errorToast)
+         }, 3000)
+       }
+     }
+
     return {
       sdkGroups,
       selectedModelId,
@@ -760,7 +836,8 @@ export default {
       cancelImport,
       clearAllModels,
       confirmClear,
-      cancelClear
+      cancelClear,
+      downloadTemplate
     }
   }
 }
