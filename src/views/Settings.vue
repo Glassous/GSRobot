@@ -130,24 +130,34 @@
                   暂无可用模型，请先配置模型
                 </div>
                 <div v-else class="space-y-2">
+                  <!-- 按提供商分组显示模型 -->
                   <div 
-                    v-for="model in availableModels" 
-                    :key="model.id"
-                    class="form-control"
+                    v-for="[provider, models] in Array.from(availableProviders.entries())" 
+                    :key="provider"
                   >
-                    <label class="label cursor-pointer justify-start space-x-3 py-2 px-3 rounded-lg hover:bg-base-300 transition-colors">
-                      <input 
-                        type="radio" 
-                        :value="model.id" 
-                        v-model="selectedModelId"
-                        @change="onModelChange"
-                        class="radio radio-primary" 
-                      />
-                      <div class="flex-1">
-                        <div class="font-medium">{{ model.displayName }}</div>
-                        <div class="text-sm text-base-content/60">{{ model.provider }}</div>
-                      </div>
-                    </label>
+                    <!-- 提供商标题 -->
+                    <div class="font-medium text-base-content/80 py-2 border-b border-base-300">
+                      {{ provider }}
+                    </div>
+                    <!-- 该提供商下的模型列表 -->
+                    <div 
+                      v-for="model in models" 
+                      :key="model.id"
+                      class="form-control ml-2"
+                    >
+                      <label class="label cursor-pointer justify-start space-x-3 py-2 px-3 rounded-lg hover:bg-base-300 transition-colors">
+                        <input 
+                          type="radio" 
+                          :value="model.id" 
+                          v-model="selectedModelId"
+                          @change="onModelChange"
+                          class="radio radio-primary" 
+                        />
+                        <div class="flex-1">
+                          <div class="font-medium">{{ model.displayName }}</div>
+                        </div>
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -186,30 +196,47 @@ export default {
     const selectedTheme = ref('system')
     const selectedModelId = ref('')
     const availableModels = ref([])
+    const availableProviders = ref(new Map()) // 按提供商分组的模型
     const renderMode = ref('normal')
 
     // 加载可用模型列表
     const loadAvailableModels = () => {
       const savedConfig = localStorage.getItem('gsrobot-ai-config')
       const models = []
+      const providers = new Map() // 用于存储按提供商分组的模型
       
       if (savedConfig) {
         try {
           const config = JSON.parse(savedConfig)
           config.forEach(sdk => {
             sdk.groups?.forEach(group => {
+              const providerKey = `${sdk.name} - ${group.name}`
+              const providerModels = []
+              
               group.models?.forEach(model => {
                 if (model.name && model.displayName) {
-                  models.push({
+                  const modelInfo = {
                     id: model.id,
                     name: model.name,
                     displayName: model.displayName,
-                    provider: `${sdk.name} - ${group.name}`,
+                    provider: providerKey,
+                    providerKey: providerKey, // 添加提供商键用于分组
                     sdkId: sdk.id,
                     groupId: group.id
-                  })
+                  }
+                  models.push(modelInfo)
+                  providerModels.push(modelInfo)
                 }
               })
+              
+              // 如果该提供商有模型，则添加到提供商映射中
+              if (providerModels.length > 0) {
+                if (providers.has(providerKey)) {
+                  providers.get(providerKey).push(...providerModels)
+                } else {
+                  providers.set(providerKey, providerModels)
+                }
+              }
             })
           })
         } catch (e) {
@@ -218,6 +245,8 @@ export default {
       }
       
       availableModels.value = models
+      // 将提供商映射存储在ref中，供模板使用
+      availableProviders.value = providers
     }
 
     // 加载设置
@@ -365,10 +394,10 @@ export default {
       selectedTheme,
       selectedModelId,
       availableModels,
+      availableProviders,
       renderMode,
       changeTheme,
       changeRenderMode,
-      saveSettings,
       goBackToHome,
       goToAIConfig,
       onModelChange

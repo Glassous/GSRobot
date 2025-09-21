@@ -205,6 +205,7 @@
                               :name="`selected-model`"
                               :value="model.id"
                               v-model="selectedModelId"
+                              @change="onModelSelect(sdk, group, model)"
                               class="radio radio-primary radio-sm"
                             />
                             <input 
@@ -338,14 +339,14 @@ export default {
         id: 'google',
         name: 'Google AI',
         description: '基于Google AI SDK的模型配置，支持 Gemini 等系列模型',
-        expanded: false,
+        expanded: true,
         groups: []
       },
       {
         id: 'anthropic',
         name: 'Anthropic',
         description: '基于Anthropic SDK的模型配置，支持 Claude 等系列模型',
-        expanded: false,
+        expanded: true,
         groups: []
       }
     ])
@@ -432,6 +433,38 @@ export default {
           }
         }
       }
+    }
+
+    // 模型选择处理
+    const onModelSelect = (sdk, group, model) => {
+      // 保存选中的模型ID
+      localStorage.setItem('gsrobot-selected-model', model.id)
+      
+      // 更新当前模型信息用于其他组件
+      const currentModelInfo = {
+        name: model.displayName,
+        provider: `${sdk.name} - ${group.name}`,
+        modelName: model.name,
+        sdkId: sdk.id,
+        groupId: group.id,
+        apiKey: group.apiKey || '',
+        baseUrl: group.baseUrl || ''
+      }
+      
+      localStorage.setItem('gsrobot-current-model', JSON.stringify(currentModelInfo))
+      
+      // 显示提示信息
+      const toast = document.createElement('div')
+      toast.className = 'toast toast-top toast-center'
+      toast.innerHTML = `
+        <div class="alert alert-success">
+          <span>已选择模型: ${model.displayName}</span>
+        </div>
+      `
+      document.body.appendChild(toast)
+      setTimeout(() => {
+        document.body.removeChild(toast)
+      }, 2000)
     }
 
     // 返回上一页
@@ -837,7 +870,8 @@ export default {
       clearAllModels,
       confirmClear,
       cancelClear,
-      downloadTemplate
+      downloadTemplate,
+      onModelSelect
     }
   }
 }
