@@ -80,32 +80,54 @@
         <div class="card-body">
           <h2 class="card-title text-lg mb-4">AI配置</h2>
           
-          <!-- 模型选择 -->
-          <div class="form-control mb-4">
+          <!-- AI配置 -->
+          <div class="form-control">
             <label class="label">
-              <span class="label-text font-medium">AI模型</span>
-              <button @click="goToAIConfig" class="btn btn-outline btn-xs">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                配置
-              </button>
+              <span class="label-text font-medium">AI模型选择</span>
             </label>
-            <select 
-              v-model="selectedModelId" 
-              @change="onModelChange"
-              class="select select-bordered w-full"
-            >
-              <option value="">请选择AI模型</option>
-              <option 
-                v-for="model in availableModels" 
-                :key="model.id" 
-                :value="model.id"
-              >
-                {{ model.displayName }} ({{ model.provider }})
-              </option>
-            </select>
+            <div class="space-y-3">
+              <!-- 模型选择区域 -->
+              <div class="bg-base-200 rounded-lg p-4 max-h-60 overflow-y-auto">
+                <div v-if="availableModels.length === 0" class="text-center text-base-content/60 py-4">
+                  暂无可用模型，请先配置模型
+                </div>
+                <div v-else class="space-y-2">
+                  <div 
+                    v-for="model in availableModels" 
+                    :key="model.id"
+                    class="form-control"
+                  >
+                    <label class="label cursor-pointer justify-start space-x-3 py-2 px-3 rounded-lg hover:bg-base-300 transition-colors">
+                      <input 
+                        type="radio" 
+                        :value="model.id" 
+                        v-model="selectedModelId"
+                        @change="onModelChange"
+                        class="radio radio-primary" 
+                      />
+                      <div class="flex-1">
+                        <div class="font-medium">{{ model.displayName }}</div>
+                        <div class="text-sm text-base-content/60">{{ model.provider }}</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 配置按钮 -->
+              <div class="flex justify-end">
+                <button 
+                  @click="goToAIConfig" 
+                  class="btn btn-outline btn-sm"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  管理模型配置
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

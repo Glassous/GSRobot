@@ -15,9 +15,20 @@
         </button>
       </div>
       
-      <!-- 中间标题 -->
+      <!-- 中间标题和模型显示 -->
       <div class="navbar-center">
-        <h1 class="text-xl font-bold">GSRobot</h1>
+        <div class="flex flex-col items-center">
+          <h1 class="text-xl font-bold">GSRobot</h1>
+          <div v-if="currentModelInfo" class="text-xs text-base-content/60 flex items-center space-x-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <span>{{ currentModelInfo.name }}</span>
+          </div>
+          <div v-else class="text-xs text-base-content/40">
+            未选择模型
+          </div>
+        </div>
       </div>
       
       <!-- 右侧设置按钮 -->
@@ -73,7 +84,7 @@
 </template>
 
 <script>
-import { ref, computed, provide, onMounted, watch } from 'vue'
+import { ref, computed, provide, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Sidebar from '../components/Sidebar.vue'
 import ChatArea from '../components/ChatArea.vue'
@@ -91,6 +102,7 @@ export default {
     const currentChatId = ref(null)
     const chats = ref([])
     const messages = ref({})
+    const currentModelInfo = ref(null)
 
     // 从LocalStorage加载聊天记录
     const loadChatsFromStorage = () => {
@@ -171,6 +183,31 @@ export default {
       closeSidebar()
     }
 
+    // 获取当前选中的模型信息
+    const getCurrentModel = () => {
+      const savedModelConfig = localStorage.getItem('gsrobot-current-model')
+      if (savedModelConfig) {
+        try {
+          return JSON.parse(savedModelConfig)
+        } catch (e) {
+          return null
+        }
+      }
+      return null
+    }
+
+    // 加载当前模型信息
+    const loadCurrentModelInfo = () => {
+      currentModelInfo.value = getCurrentModel()
+    }
+
+    // 监听localStorage变化，实时更新模型信息
+    const handleStorageChange = (e) => {
+      if (e.key === 'gsrobot-current-model') {
+        loadCurrentModelInfo()
+      }
+    }
+
     // 发送消息
     const handleSendMessage = async (content) => {
       if (!currentChatId.value) {
@@ -202,11 +239,16 @@ export default {
       // 保存用户消息
       saveChatsToStorage()
 
+      // 获取当前模型信息
+      const currentModel = getCurrentModel()
+      const modelName = currentModel ? currentModel.name : 'GSRobot'
+      const modelProvider = currentModel ? currentModel.provider : '默认模型'
+
       // 模拟AI回复
       setTimeout(() => {
         const aiMessage = {
           id: (Date.now() + 1).toString(),
-          content: `这是对"${content}"的模拟回复。我是GSRobot，一个AI助手。`,
+          content: `我是${modelName}（${modelProvider}），这是对"${content}"的回复。作为AI助手，我很高兴为您提供帮助。`,
           role: 'assistant',
           timestamp: new Date()
         }
@@ -229,6 +271,10 @@ export default {
     // 组件挂载时加载数据
     onMounted(() => {
       loadChatsFromStorage()
+      loadCurrentModelInfo()
+      
+      // 添加localStorage监听
+      window.addEventListener('storage', handleStorageChange)
       
       // 检查是否来自设置页面
       const fromSettings = sessionStorage.getItem('gsrobot-from-settings')
@@ -242,6 +288,11 @@ export default {
       }
     })
 
+    // 组件卸载时移除监听器
+    onUnmounted(() => {
+      window.removeEventListener('storage', handleStorageChange)
+    })
+
     // 提供数据给子组件
     provide('chats', chats)
     provide('messages', messages)
@@ -251,6 +302,7 @@ export default {
       sidebarOpen,
       currentChat,
       currentMessages,
+      currentModelInfo,
       toggleSidebar,
       closeSidebar,
       handleNewChat,
