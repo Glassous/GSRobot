@@ -25,14 +25,6 @@
     <div class="container mx-auto p-6 max-w-4xl pt-20">
       <!-- 顶部按钮组（新位置） -->
       <div class="flex gap-2 mb-6 justify-end">
-        <!-- 配置教程按钮 -->
-        <button @click="showTutorial" class="btn btn-outline btn-sm">
-          配置教程
-        </button>
-        <!-- 清除所有模型按钮 -->
-        <button @click="clearAllModels" class="btn btn-error btn-sm">
-          清除所有
-        </button>
         <!-- 下载模板按钮 -->
         <button @click="downloadTemplate" class="btn btn-outline btn-sm">
           下载模板
@@ -48,6 +40,18 @@
         <!-- 保存按钮 -->
         <button @click="saveConfig" class="btn btn-primary btn-sm">
           保存
+        </button>
+      </div>
+      
+      <!-- 第二行按钮组 -->
+      <div class="flex gap-2 mb-6 justify-end">
+        <!-- 配置教程按钮 -->
+        <button @click="showTutorial" class="btn btn-outline btn-sm">
+          配置教程
+        </button>
+        <!-- 清除所有模型按钮 -->
+        <button @click="clearAllModels" class="btn btn-error btn-sm">
+          清除所有
         </button>
       </div>
       <!-- SDK分组 -->
